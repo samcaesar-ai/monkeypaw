@@ -4,29 +4,8 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, RotateCcw, Loader2 } from 'lucide-react';
-
-// Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
-const SYSTEM_INSTRUCTION = `You are the spirit of the Monkey's Paw. 
-You grant wishes exactly as stated, interpreting every wish literally with no generosity of intent. 
-You do not invent random punishments. Instead, you identify hidden assumptions, loopholes, or unintended consequences embedded within the wording of the wish.
-Your goal is irony, not cruelty. The outcome must feel inevitable in hindsight.
-The tone should be eerie, restrained, and intelligent.
-The cost may be emotional, social, existential, practical, or moral.
-Do not moralize. Simply unfold consequences.
-
-When responding:
-1. Begin by briefly restating the wish.
-2. Then write a short story (200–400 words) describing how the wish unfolds.
-3. End with a final line that lands with quiet inevitability.
-
-Maintain an unsettling but elegant tone. The universe is precise, not malicious.
-
-Additionally, at the very end of your response, provide a separate section starting with "IMAGE_PROMPT:" followed by a detailed, eerie, and artistic prompt for an image generation model that captures the final scene of your story. The prompt should be in a "dark sketched" or "atmospheric oil painting" style.`;
 
 export default function App() {
   const [wish, setWish] = useState('');
@@ -44,41 +23,20 @@ export default function App() {
     setResult(null);
 
     try {
-      const response = await genAI.models.generateContent({ 
-        model: "gemini-3.1-pro-preview",
-        contents: [{ parts: [{ text: wish }] }],
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION
-        }
+      const response = await fetch('/api/wish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ wish }),
       });
       
-      const fullText = response.text || '';
-      
-      // Extract image prompt if present
-      const parts = fullText.split('IMAGE_PROMPT:');
-      const storyText = parts[0].trim();
-      const imagePrompt = parts[1]?.trim();
-
-      let imageUrl = undefined;
-      if (imagePrompt) {
-        try {
-          const imageResult = await genAI.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: [{ parts: [{ text: imagePrompt }] }]
-          });
-          
-          for (const part of imageResult.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-              break;
-            }
-          }
-        } catch (imgErr) {
-          console.error("Failed to generate image:", imgErr);
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch from the universe.');
       }
-
-      setResult({ text: storyText, imageUrl });
+      
+      const data = await response.json();
+      setResult({ text: data.text, imageUrl: data.imageUrl });
     } catch (err) {
       console.error(err);
       setError("The paw twitches, but the universe remains silent. Try again.");
