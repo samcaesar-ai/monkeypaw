@@ -53,6 +53,7 @@ interface BubbleProps {
 }
 
 function WishBubble({ entry, depth, onClick }: BubbleProps) {
+  const isReal = !!entry.story;
   const opacity = 0.07 + (1 - depth) * 0.53;         // 0.07 → 0.60
   const blur = depth * 3.5;                           // 0 → 3.5px
   const fontSize = 9 + (1 - depth) * 5;              // 9 → 14px
@@ -74,44 +75,68 @@ function WishBubble({ entry, depth, onClick }: BubbleProps) {
     ? entry.wish.slice(0, 30) + '…'
     : entry.wish;
 
+  const sharedStyle = {
+    left: `${xPos}%`,
+    top: `${yPos}%`,
+    transform: 'translate(-50%, -50%)',
+    opacity,
+    filter: blur > 0 ? `blur(${blur}px)` : undefined,
+    fontSize: `${fontSize}px`,
+    zIndex: Math.round((1 - depth) * 8) + 1,
+  };
+
+  const innerSpan = (hovered = false) => (
+    <span
+      className="block px-2.5 py-1 rounded-full whitespace-nowrap transition-all duration-300"
+      style={{
+        color: `rgba(160, 185, 220, ${0.5 + (1 - depth) * 0.5})`,
+        background: hovered
+          ? `rgba(30, 50, 90, 0.18)`
+          : `rgba(30, 50, 90, ${0.02 + (1 - depth) * 0.07})`,
+        border: `1px solid rgba(80, 120, 190, ${hovered ? 0.35 : 0.04 + (1 - depth) * 0.14})`,
+        boxShadow: hovered
+          ? `0 0 22px rgba(70, 110, 200, 0.35)`
+          : glowStrength > 0
+            ? `0 0 ${10 + (1 - depth) * 18}px rgba(70, 110, 200, ${glowStrength})`
+            : undefined,
+      }}
+    >
+      {truncated}
+    </span>
+  );
+
+  if (!isReal) {
+    // Ghost wishes: purely decorative, no interaction
+    return (
+      <motion.div
+        className="absolute font-serif italic leading-none pointer-events-none select-none"
+        style={sharedStyle}
+        animate={{
+          x: [0, driftX, 0, -driftX * 0.7, 0],
+          y: [0, -7, -2, 6, 0],
+        }}
+        transition={{ duration: driftDuration, ease: 'easeInOut', repeat: Infinity, delay: phaseShift }}
+      >
+        {innerSpan()}
+      </motion.div>
+    );
+  }
+
+  // Real wishes: interactive button with hover feedback
   return (
     <motion.button
       onClick={onClick}
-      className="absolute font-serif italic leading-none pointer-events-auto"
-      style={{
-        left: `${xPos}%`,
-        top: `${yPos}%`,
-        transform: 'translate(-50%, -50%)',
-        opacity,
-        filter: blur > 0 ? `blur(${blur}px)` : undefined,
-        fontSize: `${fontSize}px`,
-        zIndex: Math.round((1 - depth) * 8) + 1,
-      }}
+      className="absolute font-serif italic leading-none pointer-events-auto group"
+      style={{ ...sharedStyle, cursor: 'pointer' }}
       animate={{
         x: [0, driftX, 0, -driftX * 0.7, 0],
         y: [0, -7, -2, 6, 0],
       }}
-      transition={{
-        duration: driftDuration,
-        ease: 'easeInOut',
-        repeat: Infinity,
-        delay: phaseShift,
-      }}
-      title={entry.wish}
+      transition={{ duration: driftDuration, ease: 'easeInOut', repeat: Infinity, delay: phaseShift }}
+      title="Click to read this wish's fate"
+      whileHover={{ scale: 1.08, opacity: Math.min(1, opacity * 1.5) }}
     >
-      <span
-        className="block px-2.5 py-1 rounded-full whitespace-nowrap"
-        style={{
-          color: `rgba(160, 185, 220, ${0.5 + (1 - depth) * 0.5})`,
-          background: `rgba(30, 50, 90, ${0.02 + (1 - depth) * 0.07})`,
-          border: `1px solid rgba(80, 120, 190, ${0.04 + (1 - depth) * 0.14})`,
-          boxShadow: glowStrength > 0
-            ? `0 0 ${10 + (1 - depth) * 18}px rgba(70, 110, 200, ${glowStrength})`
-            : undefined,
-        }}
-      >
-        {truncated}
-      </span>
+      {innerSpan()}
     </motion.button>
   );
 }
@@ -214,7 +239,7 @@ export default function WishOcean({ refreshKey = 0 }: WishOceanProps) {
               key={entry.id}
               entry={entry}
               depth={depth}
-              onClick={() => entry.story ? setSelected(entry) : undefined}
+              onClick={() => setSelected(entry)}
             />
           );
         })}
