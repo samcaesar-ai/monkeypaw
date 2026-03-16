@@ -73,64 +73,26 @@ export default function App() {
               className="flex flex-col items-center space-y-12"
             >
               {/* The Paw Sketch */}
-              <div className="relative w-56 h-72">
+              <div className="relative w-64 h-64 md:w-80 md:h-80">
                 <motion.div
                   animate={isGranting ? {
-                    rotate: [0, -3, 3, -3, 0],
-                    scale: [1, 1.05, 1],
-                    filter: ["brightness(1)", "brightness(1.6)", "brightness(1)"]
+                    rotate: [0, -1, 1, -1, 0],
+                    scale: [1, 1.02, 1],
+                    filter: ["brightness(1) contrast(1)", "brightness(1.1) contrast(1.2)", "brightness(1) contrast(1)"]
                   } : {
-                    rotate: [0, -0.6, 0, 0.6, 0],
+                    rotate: [0, -0.2, 0, 0.2, 0],
                   }}
                   transition={isGranting
                     ? { repeat: Infinity, duration: 1.5 }
                     : { repeat: Infinity, duration: 9, ease: "easeInOut" }
                   }
-                  className="w-full h-full flex items-center justify-center"
+                  className="w-full h-full flex items-center justify-center rounded-xl overflow-hidden border border-[#222] shadow-[0_0_30px_rgba(0,0,0,0.8)]"
                 >
-                  <svg viewBox="0 0 200 220" fill="none" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full text-[#505050] drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]">
-                    {/* Palm */}
-                    <path stroke="currentColor" strokeWidth="1.6"
-                      d="M 76,138 C 70,152 67,168 69,182 C 71,194 79,200 90,202 C 94,204 106,204 110,202 C 121,200 129,194 131,182 C 133,168 130,152 124,142" />
-                    {/* Index finger */}
-                    <path stroke="currentColor" strokeWidth="1.5"
-                      d="M 76,138 C 74,120 72,100 73,84 C 74,70 78,64 84,62 C 90,60 95,66 96,80 C 97,94 95,116 93,136" />
-                    {/* Middle finger */}
-                    <path stroke="currentColor" strokeWidth="1.5"
-                      d="M 88,133 C 87,114 86,90 87,70 C 88,56 93,50 100,50 C 107,50 112,56 113,70 C 114,90 113,114 112,133" />
-                    {/* Ring finger */}
-                    <path stroke="currentColor" strokeWidth="1.5"
-                      d="M 104,136 C 105,116 107,94 109,76 C 111,64 115,58 121,60 C 127,62 130,70 129,84 C 128,100 126,120 124,138" />
-                    {/* Pinky */}
-                    <path stroke="currentColor" strokeWidth="1.5"
-                      d="M 118,142 C 120,126 122,110 122,98 C 122,86 126,78 132,78 C 138,78 141,86 141,98 C 141,110 139,128 137,144" />
-                    {/* Thumb */}
-                    <path stroke="currentColor" strokeWidth="1.5"
-                      d="M 68,164 C 60,158 50,152 44,146 C 38,140 38,131 45,127 C 52,123 61,126 67,134 C 71,140 71,152 69,163" />
-                    {/* Knuckle lines — index */}
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 73,100 C 78,97 89,97 95,100" />
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 73,82 C 78,79 89,79 95,82" />
-                    {/* Knuckle lines — middle */}
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 87,90 C 93,87 107,87 113,90" />
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 87,70 C 93,67 107,67 113,70" />
-                    {/* Knuckle lines — ring */}
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 107,92 C 112,89 123,89 129,92" />
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 109,74 C 114,71 124,71 129,74" />
-                    {/* Knuckle lines — pinky */}
-                    <path stroke="currentColor" strokeWidth="0.8" d="M 122,104 C 126,101 135,101 140,104" />
-                    {/* Palm crease lines */}
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 74,170 C 86,166 114,166 126,170" />
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 72,182 C 85,178 115,178 128,182" />
-                    {/* Wrist fur */}
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 86,202 C 85,207 85,210 83,214" />
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 93,203 C 92,208 92,211 91,215" />
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 100,204 C 100,209 100,212 100,216" />
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 107,203 C 108,208 108,211 109,215" />
-                    <path stroke="currentColor" strokeWidth="0.7" d="M 114,202 C 115,207 116,210 118,214" />
-                    {/* Sketch texture — ghost lines for hand-drawn feel */}
-                    <path stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.3" d="M 77,142 C 72,154 69,166 70,180" />
-                    <path stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.3" d="M 123,146 C 127,156 130,168 129,180" />
-                  </svg>
+                  <img 
+                    src="/paw.png" 
+                    alt="Anatomical Monkey's Paw" 
+                    className="w-full h-full object-cover grayscale opacity-90 transition-all duration-1000 hover:grayscale-0"
+                  />
                 </motion.div>
                 {isGranting && (
                   <motion.div
