@@ -70,6 +70,25 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    // Persist wish to Redis (graceful fallback if not configured)
+    try {
+      const { Redis } = await import('@upstash/redis');
+      const redis = new Redis({
+        url: process.env.KV_REST_API_URL!,
+        token: process.env.KV_REST_API_TOKEN!,
+      });
+      const entry = {
+        id: crypto.randomUUID(),
+        wish: (wish as string).slice(0, 200),
+        story: storyText,
+        timestamp: Date.now(),
+      };
+      await redis.lpush('wishes', entry);
+      await redis.ltrim('wishes', 0, 49);
+    } catch {
+      // Redis not configured — skip silently
+    }
+
     res.status(200).json({ text: storyText, imageUrl });
   } catch (err: any) {
     console.error(err);

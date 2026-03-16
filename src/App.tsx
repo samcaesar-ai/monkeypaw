@@ -6,12 +6,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, RotateCcw, Loader2 } from 'lucide-react';
+import WishOcean from './components/WishOcean';
 
 export default function App() {
   const [wish, setWish] = useState('');
   const [isGranting, setIsGranting] = useState(false);
   const [result, setResult] = useState<{ text: string; imageUrl?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [oceanRefreshKey, setOceanRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleWish = async (e: React.FormEvent) => {
@@ -37,6 +39,7 @@ export default function App() {
       
       const data = await response.json();
       setResult({ text: data.text, imageUrl: data.imageUrl });
+      setOceanRefreshKey(k => k + 1);
     } catch (err) {
       console.error(err);
       setError("The paw twitches, but the universe remains silent. Try again.");
@@ -61,6 +64,9 @@ export default function App() {
     <div className="min-h-screen bg-[#0a0a0a] text-[#d4d4d4] font-serif selection:bg-[#333] selection:text-[#fff] flex flex-variable flex-col items-center justify-center p-6 overflow-x-hidden">
       {/* Background Texture */}
       <div className="fixed inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
+
+      {/* Wish Ocean — past wishes floating in the dark */}
+      <WishOcean refreshKey={oceanRefreshKey} />
       
       <main className="max-w-2xl w-full relative z-10">
         <AnimatePresence mode="wait">
