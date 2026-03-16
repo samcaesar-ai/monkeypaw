@@ -70,10 +70,10 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center space-y-12"
+              className="flex flex-col items-center space-y-8 md:space-y-12"
             >
               {/* The Paw Sketch */}
-              <div className="relative w-64 h-64 md:w-80 md:h-80">
+              <div className="relative w-56 h-56 md:w-80 md:h-80 max-w-[90vw]">
                 <motion.div
                   animate={isGranting ? {
                     rotate: [0, -1, 1, -1, 0],
@@ -113,7 +113,7 @@ export default function App() {
                     onChange={(e) => setWish(e.target.value)}
                     placeholder="what do you wish for..."
                     disabled={isGranting}
-                    className="w-full bg-transparent border-b border-[#333] py-4 px-2 text-xl md:text-2xl text-center focus:outline-none focus:border-[#666] transition-colors placeholder:italic placeholder:text-[#333] disabled:opacity-50"
+                    className="w-full bg-transparent border-b border-[#333] py-4 px-2 text-lg md:text-2xl text-center focus:outline-none focus:border-[#666] transition-colors placeholder:italic placeholder:text-[#333] disabled:opacity-50"
                   />
                   <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-[#888] transition-all duration-500 group-focus-within:w-full" />
                 </div>

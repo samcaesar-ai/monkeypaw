@@ -22,6 +22,7 @@ Rules:
 - Be specific and concrete. Name the exact thing. Describe the exact sensation.
 - Do not explain the irony. Trust the reader.
 - The final line should land — give it some bite.
+- **UK LOCALISATION REQUIRED:** Use strictly British English spelling (e.g. colour, realise) and British cultural contexts/vocabulary (e.g. £ pounds not dollars, secondary school not middle school, flats not apartments, boot of a car, etc.). No Americanisms.
 
 At the very end — after the story — add a block starting with "IMAGE_PROMPT:" followed by a specific scene from the story for an image generator. Style: atmospheric etching or candlelit oil painting, desaturated, deep shadow, fine detail.`;
 
@@ -37,7 +38,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 1024,
       system: SYSTEM_INSTRUCTION,
       messages: [
