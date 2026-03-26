@@ -48,8 +48,8 @@ export default async function handler(req: any, res: any) {
   try {
     if (mode === 'question') {
       const msg = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 512,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 256,
         system: QUESTION_INSTRUCTION,
         messages: [
           { role: "user", content: "Generate a Would You Rather question." }
@@ -65,7 +65,13 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'Question and choice are required' });
       }
 
-      const msg = await anthropic.messages.create({
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
         max_tokens: 1024,
         system: STORY_INSTRUCTION,
@@ -74,12 +80,30 @@ export default async function handler(req: any, res: any) {
         ],
       });
 
-      const fullText = (msg.content[0] as any).text;
-      const parts = fullText.split('IMAGE_PROMPT:');
-      const storyText = parts[0].trim();
-      const imagePrompt = parts[1]?.trim();
+      let fullText = '';
 
-      return res.status(200).json({ text: storyText, imagePrompt });
+      stream.on('text', (text) => {
+        fullText += text;
+        res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
+      });
+
+      stream.on('end', () => {
+        const parts = fullText.split('IMAGE_PROMPT:');
+        const imagePrompt = parts[1]?.trim();
+        if (imagePrompt) {
+          res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
+        }
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
+      });
+
+      stream.on('error', (err) => {
+        console.error(err);
+        res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+        res.end();
+      });
+
+      return;
 
     } else {
       return res.status(400).json({ error: 'Invalid mode. Use "question" or "story".' });

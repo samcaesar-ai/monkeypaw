@@ -35,7 +35,13 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const msg = await anthropic.messages.create({
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: SYSTEM_INSTRUCTION,
@@ -44,31 +50,50 @@ export default async function handler(req: any, res: any) {
       ],
     });
 
-    const fullText = (msg.content[0] as any).text;
-    const parts = fullText.split('IMAGE_PROMPT:');
-    const storyText = parts[0].trim();
-    const imagePrompt = parts[1]?.trim();
+    let fullText = '';
 
-    // Persist wish to Redis (graceful fallback if not configured)
-    try {
-      const { Redis } = await import('@upstash/redis');
-      const redis = new Redis({
-        url: process.env.KV_REST_API_URL!,
-        token: process.env.KV_REST_API_TOKEN!,
-      });
-      const entry = {
-        id: crypto.randomUUID(),
-        wish: (wish as string).slice(0, 200),
-        story: storyText,
-        timestamp: Date.now(),
-      };
-      await redis.lpush('wishes', entry);
-      await redis.ltrim('wishes', 0, 49);
-    } catch {
-      // Redis not configured — skip silently
-    }
+    stream.on('text', (text) => {
+      fullText += text;
+      res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
+    });
 
-    res.status(200).json({ text: storyText, imagePrompt });
+    stream.on('end', async () => {
+      const parts = fullText.split('IMAGE_PROMPT:');
+      const storyText = parts[0].trim();
+      const imagePrompt = parts[1]?.trim();
+
+      if (imagePrompt) {
+        res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
+      }
+
+      // Persist wish to Redis (graceful fallback if not configured)
+      try {
+        const { Redis } = await import('@upstash/redis');
+        const redis = new Redis({
+          url: process.env.KV_REST_API_URL!,
+          token: process.env.KV_REST_API_TOKEN!,
+        });
+        const entry = {
+          id: crypto.randomUUID(),
+          wish: (wish as string).slice(0, 200),
+          story: storyText,
+          timestamp: Date.now(),
+        };
+        await redis.lpush('wishes', entry);
+        await redis.ltrim('wishes', 0, 49);
+      } catch {
+        // Redis not configured — skip silently
+      }
+
+      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      res.end();
+    });
+
+    stream.on('error', (err) => {
+      console.error(err);
+      res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+      res.end();
+    });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err.message || "Failed to grant wish." });

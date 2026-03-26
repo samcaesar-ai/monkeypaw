@@ -28,21 +28,53 @@ export default function App() {
     try {
       const response = await fetch('/api/wish', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wish }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch from the universe.');
       }
-      
-      const data = await response.json();
-      setResult({ text: data.text, imagePrompt: data.imagePrompt });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No reader available');
+
+      let streamedText = '';
+      let imagePrompt: string | undefined;
+
+      // Show result view immediately so text streams in
+      setResult({ text: '' });
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === 'text') {
+            streamedText += data.text;
+            // Strip IMAGE_PROMPT from display text
+            const display = streamedText.split('IMAGE_PROMPT:')[0].trim();
+            setResult(prev => prev ? { ...prev, text: display } : prev);
+          } else if (data.type === 'image_prompt') {
+            imagePrompt = data.imagePrompt;
+            setResult(prev => prev ? { ...prev, imagePrompt } : prev);
+          } else if (data.type === 'error') {
+            throw new Error(data.error);
+          }
+        }
+      }
+
       setOceanRefreshKey(k => k + 1);
     } catch (err) {
       console.error(err);
+      setResult(null);
       setError("The paw twitches, but the universe remains silent. Try again.");
     } finally {
       setIsGranting(false);

@@ -16,6 +16,24 @@ export default function WYR() {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prefetchedQuestion = useRef<WYRQuestion | null>(null);
+
+  const fetchQuestionFromAPI = async (): Promise<WYRQuestion> => {
+    const response = await fetch('/api/wyr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'question' }),
+    });
+    if (!response.ok) throw new Error('Failed to summon a dilemma.');
+    return response.json();
+  };
+
+  const prefetchNextQuestion = () => {
+    prefetchedQuestion.current = null;
+    fetchQuestionFromAPI()
+      .then(data => { prefetchedQuestion.current = data; })
+      .catch(() => { /* will fetch fresh on demand */ });
+  };
 
   const fetchQuestion = async () => {
     setIsLoading(true);
@@ -24,15 +42,13 @@ export default function WYR() {
     setWyrData(null);
 
     try {
-      const response = await fetch('/api/wyr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'question' }),
-      });
-
-      if (!response.ok) throw new Error('Failed to summon a dilemma.');
-      const data = await response.json();
-      setWyrData(data);
+      if (prefetchedQuestion.current) {
+        setWyrData(prefetchedQuestion.current);
+        prefetchedQuestion.current = null;
+      } else {
+        const data = await fetchQuestionFromAPI();
+        setWyrData(data);
+      }
     } catch (err) {
       console.error(err);
       setError("The cosmos couldn't conjure a dilemma. Try again.");
@@ -46,6 +62,9 @@ export default function WYR() {
     setIsGeneratingStory(true);
     setError(null);
 
+    // Start pre-fetching the next question while the story streams
+    prefetchNextQuestion();
+
     try {
       const response = await fetch('/api/wyr', {
         method: 'POST',
@@ -58,10 +77,42 @@ export default function WYR() {
       });
 
       if (!response.ok) throw new Error('The universe declined to elaborate.');
-      const data = await response.json();
-      setResult({ text: data.text, imagePrompt: data.imagePrompt, choice });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No reader available');
+
+      let streamedText = '';
+      let imagePrompt: string | undefined;
+
+      setResult({ text: '', choice });
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === 'text') {
+            streamedText += data.text;
+            const display = streamedText.split('IMAGE_PROMPT:')[0].trim();
+            setResult(prev => prev ? { ...prev, text: display } : prev);
+          } else if (data.type === 'image_prompt') {
+            imagePrompt = data.imagePrompt;
+            setResult(prev => prev ? { ...prev, imagePrompt } : prev);
+          } else if (data.type === 'error') {
+            throw new Error(data.error);
+          }
+        }
+      }
     } catch (err) {
       console.error(err);
+      setResult(null);
       setError("The narrator lost their train of thought. Try again.");
     } finally {
       setIsGeneratingStory(false);
