@@ -5,14 +5,18 @@ const anthropic = new Anthropic({
 });
 
 // Randomised seed elements to force variety on every request
-const DOMAINS = [
-  'workplace', 'dating', 'family gatherings', 'public transport', 'supermarkets',
-  'job interviews', 'weddings', 'funerals', 'holidays abroad', 'school reunions',
-  'the gym', 'your GP surgery', 'a Wetherspoons', 'a motorway service station',
-  'a National Trust property', 'a caravan park', 'a Tesco Express at midnight',
-  'your in-laws\' house', 'a council meeting', 'a Premier League match',
-  'a village fête', 'a B&B in the Cotswolds', 'a late-night kebab shop',
-  'a soft play centre', 'a museum gift shop', 'a dentist\'s waiting room',
+// Abstract vibes, NOT specific places — Claude latches onto named locations
+const THEMES = [
+  'social embarrassment', 'bodily autonomy', 'professional reputation',
+  'romantic relationships', 'family dynamics', 'financial decisions',
+  'technology dependence', 'food and eating', 'sleep and dreams',
+  'ageing and mortality', 'communication', 'memory and identity',
+  'senses and perception', 'time and routine', 'animals and nature',
+  'music and sound', 'clothing and appearance', 'transport and travel',
+  'housing and neighbours', 'health and wellness', 'fame and anonymity',
+  'childhood and nostalgia', 'weather and seasons', 'sports and competition',
+  'language and accents', 'smells', 'textures', 'gravity', 'colour',
+  'silence', 'symmetry', 'luck', 'déjà vu', 'queuing',
 ];
 
 const FLAVOURS = [
@@ -93,11 +97,11 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (mode === 'question') {
-      const domain = pickRandom(DOMAINS, 1)[0];
+      const themes = pickRandom(THEMES, 2);
       const flavour = pickRandom(FLAVOURS, 1)[0];
       const tone = pickRandom(TONES, 1)[0];
 
-      let userContent = `Generate a Would You Rather question.\n\nCreative direction for THIS question:\n- Setting/domain: ${domain}\n- Flavour: ${flavour}\n- Tone: ${tone}\n\nUse these as loose inspiration, not rigid constraints. The question should feel natural, not forced.`;
+      let userContent = `Generate a Would You Rather question.\n\nCreative seeds (use as LOOSE inspiration — do NOT mention these words directly in the question):\n- Themes to riff on: ${themes.join(' × ')}\n- Flavour: ${flavour}\n- Tone: ${tone}\n\nThe question should feel original and surprising. Do NOT set it in a specific named chain, brand, or restaurant.`;
       if (recentQuestions && recentQuestions.length > 0) {
         userContent += `\n\nIMPORTANT: Do NOT repeat or closely resemble any of these recent questions. Be completely different in topic, tone, and structure:\n${recentQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}`;
       }
@@ -105,6 +109,7 @@ export default async function handler(req: any, res: any) {
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 256,
+        temperature: 1,
         system: QUESTION_INSTRUCTION,
         messages: [
           { role: "user", content: userContent }
