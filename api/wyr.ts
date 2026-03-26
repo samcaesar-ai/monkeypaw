@@ -43,16 +43,21 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { mode, question, choice } = req.body;
+  const { mode, question, choice, recentQuestions } = req.body;
 
   try {
     if (mode === 'question') {
+      let userContent = "Generate a Would You Rather question.";
+      if (recentQuestions && recentQuestions.length > 0) {
+        userContent += `\n\nIMPORTANT: Do NOT repeat or closely resemble any of these recent questions. Be completely different in topic, tone, and structure:\n${recentQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}`;
+      }
+
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 256,
         system: QUESTION_INSTRUCTION,
         messages: [
-          { role: "user", content: "Generate a Would You Rather question." }
+          { role: "user", content: userContent }
         ],
       });
 

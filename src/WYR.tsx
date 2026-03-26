@@ -15,17 +15,22 @@ export default function WYR() {
   const [result, setResult] = useState<{ text: string; imagePrompt?: string; imageUrl?: string; choice: string } | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [storyDone, setStoryDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prefetchedQuestion = useRef<WYRQuestion | null>(null);
+  const recentQuestions = useRef<string[]>([]);
 
   const fetchQuestionFromAPI = async (): Promise<WYRQuestion> => {
     const response = await fetch('/api/wyr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'question' }),
+      body: JSON.stringify({ mode: 'question', recentQuestions: recentQuestions.current }),
     });
     if (!response.ok) throw new Error('Failed to summon a dilemma.');
-    return response.json();
+    const data = await response.json();
+    // Track recent questions (keep last 10)
+    recentQuestions.current = [...recentQuestions.current, data.question].slice(-10);
+    return data;
   };
 
   const prefetchNextQuestion = () => {
@@ -86,6 +91,7 @@ export default function WYR() {
       let imagePrompt: string | undefined;
 
       setResult({ text: '', choice });
+      setStoryDone(false);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -110,6 +116,7 @@ export default function WYR() {
           }
         }
       }
+      setStoryDone(true);
     } catch (err) {
       console.error(err);
       setResult(null);
@@ -143,10 +150,10 @@ export default function WYR() {
   }, []);
 
   useEffect(() => {
-    if (result && scrollRef.current) {
+    if (storyDone && scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [result]);
+  }, [storyDone]);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#d4d4d4] font-serif selection:bg-[#333] selection:text-[#fff] flex flex-col items-center justify-center p-6 overflow-x-hidden">
