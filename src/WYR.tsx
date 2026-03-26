@@ -179,7 +179,7 @@ export default function WYR() {
                     </motion.button>
                   </div>
 
-                  {isGeneratingStory && (
+                  {isGeneratingStory ? (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -188,6 +188,14 @@ export default function WYR() {
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span className="italic text-sm">The narrator clears their throat...</span>
                     </motion.div>
+                  ) : (
+                    <button
+                      onClick={fetchQuestion}
+                      className="group flex items-center gap-3 text-[#333] hover:text-[#888] transition-colors uppercase tracking-[0.3em] text-xs"
+                    >
+                      <RotateCcw className="w-4 h-4 group-hover:rotate-[-180deg] transition-transform duration-500" />
+                      Different Dilemma
+                    </button>
                   )}
                 </>
               )}
