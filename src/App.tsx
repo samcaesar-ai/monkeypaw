@@ -203,6 +203,14 @@ export default function App() {
         </AnimatePresence>
       </main>
 
+      {/* WYR Link */}
+      <a
+        href="#wyr"
+        className="fixed top-6 right-6 z-50 px-4 py-2 border border-[#222] hover:border-[#555] rounded-full text-[#444] hover:text-[#888] transition-all text-xs uppercase tracking-[0.2em]"
+      >
+        WYR
+      </a>
+
       {/* Footer Decoration */}
       <footer className="fixed bottom-8 text-[10px] uppercase tracking-[0.5em] text-[#222] pointer-events-none">
         The Universe is Precise
