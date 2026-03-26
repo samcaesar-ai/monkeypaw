@@ -1,10 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenAI } from '@google/genai';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 const QUESTION_INSTRUCTION = `You are a deranged cosmic gameshow host who presents "Would You Rather" dilemmas. You've been doing this for aeons and your sense of what constitutes a "choice" has become beautifully warped.
 
@@ -81,26 +79,7 @@ export default async function handler(req: any, res: any) {
       const storyText = parts[0].trim();
       const imagePrompt = parts[1]?.trim();
 
-      let imageUrl = undefined;
-      if (imagePrompt && process.env.GEMINI_API_KEY) {
-        try {
-          const imageResult = await genAI.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: [{ parts: [{ text: imagePrompt }] }]
-          });
-
-          for (const part of imageResult.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-              break;
-            }
-          }
-        } catch (imgErr) {
-          console.error("Failed to generate image:", imgErr);
-        }
-      }
-
-      return res.status(200).json({ text: storyText, imageUrl });
+      return res.status(200).json({ text: storyText, imagePrompt });
 
     } else {
       return res.status(400).json({ error: 'Invalid mode. Use "question" or "story".' });

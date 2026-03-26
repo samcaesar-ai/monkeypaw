@@ -1,10 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenAI } from '@google/genai';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 const SYSTEM_INSTRUCTION = `You are the Monkey's Paw. You are ancient, sardonic, and utterly literal. You have been granting wishes for centuries and you find the whole thing quietly hilarious.
 
@@ -51,25 +49,6 @@ export default async function handler(req: any, res: any) {
     const storyText = parts[0].trim();
     const imagePrompt = parts[1]?.trim();
 
-    let imageUrl = undefined;
-    if (imagePrompt && process.env.GEMINI_API_KEY) {
-      try {
-        const imageResult = await genAI.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: [{ parts: [{ text: imagePrompt }] }]
-        });
-        
-        for (const part of imageResult.candidates?.[0]?.content?.parts || []) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-            break;
-          }
-        }
-      } catch (imgErr) {
-        console.error("Failed to generate image:", imgErr);
-      }
-    }
-
     // Persist wish to Redis (graceful fallback if not configured)
     try {
       const { Redis } = await import('@upstash/redis');
@@ -89,7 +68,7 @@ export default async function handler(req: any, res: any) {
       // Redis not configured — skip silently
     }
 
-    res.status(200).json({ text: storyText, imageUrl });
+    res.status(200).json({ text: storyText, imagePrompt });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err.message || "Failed to grant wish." });

@@ -5,13 +5,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, RotateCcw, Loader2 } from 'lucide-react';
+import { Sparkles, RotateCcw, Loader2, Eye } from 'lucide-react';
 import WishOcean from './components/WishOcean';
 
 export default function App() {
   const [wish, setWish] = useState('');
   const [isGranting, setIsGranting] = useState(false);
-  const [result, setResult] = useState<{ text: string; imageUrl?: string } | null>(null);
+  const [result, setResult] = useState<{ text: string; imagePrompt?: string; imageUrl?: string } | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [oceanRefreshKey, setOceanRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,7 +39,7 @@ export default function App() {
       }
       
       const data = await response.json();
-      setResult({ text: data.text, imageUrl: data.imageUrl });
+      setResult({ text: data.text, imagePrompt: data.imagePrompt });
       setOceanRefreshKey(k => k + 1);
     } catch (err) {
       console.error(err);
@@ -48,10 +49,30 @@ export default function App() {
     }
   };
 
+  const handleVisualise = async () => {
+    if (!result?.imagePrompt) return;
+    setIsGeneratingImage(true);
+    try {
+      const response = await fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: result.imagePrompt }),
+      });
+      if (!response.ok) throw new Error('Image generation failed');
+      const data = await response.json();
+      setResult(prev => prev ? { ...prev, imageUrl: data.imageUrl } : prev);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   const reset = () => {
     setWish('');
     setResult(null);
     setError(null);
+    setIsGeneratingImage(false);
   };
 
   useEffect(() => {
@@ -172,6 +193,31 @@ export default function App() {
                   </p>
                 ))}
               </div>
+
+              {result.imagePrompt && !result.imageUrl && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleVisualise}
+                    disabled={isGeneratingImage}
+                    className="group relative px-8 py-3 overflow-hidden rounded-full border border-[#222] hover:border-[#555] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative z-10 flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-[#555] group-hover:text-[#aaa] transition-colors">
+                      {isGeneratingImage ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Manifesting...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          Visualise the Horror
+                        </>
+                      )}
+                    </span>
+                    <div className="absolute inset-0 bg-white/[0.03] translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  </button>
+                </div>
+              )}
 
               {result.imageUrl && (
                 <motion.div

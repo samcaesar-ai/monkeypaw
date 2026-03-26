@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, RotateCcw, Skull } from 'lucide-react';
+import { Loader2, RotateCcw, Skull, Eye } from 'lucide-react';
 
 type WYRQuestion = {
   question: string;
@@ -12,7 +12,8 @@ export default function WYR() {
   const [wyrData, setWyrData] = useState<WYRQuestion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
-  const [result, setResult] = useState<{ text: string; imageUrl?: string; choice: string } | null>(null);
+  const [result, setResult] = useState<{ text: string; imagePrompt?: string; imageUrl?: string; choice: string } | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -58,12 +59,31 @@ export default function WYR() {
 
       if (!response.ok) throw new Error('The universe declined to elaborate.');
       const data = await response.json();
-      setResult({ text: data.text, imageUrl: data.imageUrl, choice });
+      setResult({ text: data.text, imagePrompt: data.imagePrompt, choice });
     } catch (err) {
       console.error(err);
       setError("The narrator lost their train of thought. Try again.");
     } finally {
       setIsGeneratingStory(false);
+    }
+  };
+
+  const handleVisualise = async () => {
+    if (!result?.imagePrompt) return;
+    setIsGeneratingImage(true);
+    try {
+      const response = await fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: result.imagePrompt }),
+      });
+      if (!response.ok) throw new Error('Image generation failed');
+      const data = await response.json();
+      setResult(prev => prev ? { ...prev, imageUrl: data.imageUrl } : prev);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -202,6 +222,31 @@ export default function WYR() {
                   </p>
                 ))}
               </div>
+
+              {result.imagePrompt && !result.imageUrl && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleVisualise}
+                    disabled={isGeneratingImage}
+                    className="group relative px-8 py-3 overflow-hidden rounded-full border border-[#222] hover:border-[#555] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative z-10 flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-[#555] group-hover:text-[#aaa] transition-colors">
+                      {isGeneratingImage ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Manifesting...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          Visualise the Horror
+                        </>
+                      )}
+                    </span>
+                    <div className="absolute inset-0 bg-white/[0.03] translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  </button>
+                </div>
+              )}
 
               {result.imageUrl && (
                 <motion.div
