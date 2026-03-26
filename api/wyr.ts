@@ -112,7 +112,12 @@ export default async function handler(req: any, res: any) {
       });
 
       const text = (msg.content[0] as any).text;
-      const parsed = JSON.parse(text);
+      // Extract JSON from response — Claude sometimes adds preamble
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON in response');
+      }
+      const parsed = JSON.parse(jsonMatch[0]);
       return res.status(200).json(parsed);
 
     } else if (mode === 'story') {
