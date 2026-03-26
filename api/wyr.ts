@@ -4,6 +4,50 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
 
+// Randomised seed elements to force variety on every request
+const DOMAINS = [
+  'workplace', 'dating', 'family gatherings', 'public transport', 'supermarkets',
+  'job interviews', 'weddings', 'funerals', 'holidays abroad', 'school reunions',
+  'the gym', 'your GP surgery', 'a Wetherspoons', 'a motorway service station',
+  'a National Trust property', 'a caravan park', 'a Tesco Express at midnight',
+  'your in-laws\' house', 'a council meeting', 'a Premier League match',
+  'a village fête', 'a B&B in the Cotswolds', 'a late-night kebab shop',
+  'a soft play centre', 'a museum gift shop', 'a dentist\'s waiting room',
+];
+
+const FLAVOURS = [
+  'body horror but make it mundane',
+  'existential dread disguised as a minor inconvenience',
+  'a supernatural curse with very specific bureaucratic rules',
+  'something that sounds amazing until you think about it for 10 seconds',
+  'an ability that technically counts as a superpower but ruins your social life',
+  'a Faustian bargain involving a household appliance',
+  'time-loop energy but only in one very boring location',
+  'a sensory experience that cannot be explained to anyone else',
+  'something involving animals that have gained an unsettling new behaviour',
+  'a physical transformation that is technically reversible but socially devastating',
+  'financial gain with a deeply specific and embarrassing catch',
+  'telepathy but the wrong kind',
+  'immortality with a very British asterisk',
+  'a romantic curse that only activates at the worst possible moment',
+  'something that makes you famous for exactly the wrong reason',
+  'a childhood dream granted in the most literal and inconvenient way',
+];
+
+const TONES = [
+  'absurdist — push the logic until it snaps',
+  'philosophical — genuinely makes you stare at the ceiling',
+  'mundane horror — the worst part is how plausible it is',
+  'gleefully unhinged — the gameshow host has lost the plot',
+  'deadpan — delivered with the energy of a bored civil servant',
+  'weirdly wholesome — both options sound almost nice, then you think harder',
+];
+
+function pickRandom<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
 const QUESTION_INSTRUCTION = `You are a deranged cosmic gameshow host who presents "Would You Rather" dilemmas. You've been doing this for aeons and your sense of what constitutes a "choice" has become beautifully warped.
 
 Generate a single "Would You Rather" question with exactly two options. Both options should be:
@@ -16,6 +60,8 @@ Generate a single "Would You Rather" question with exactly two options. Both opt
 The humour comes from specificity and escalation. Not "would you rather be rich or famous" — more like "would you rather have every dog you pass on the street narrate your deepest insecurity out loud, or have your browser history projected onto the nearest wall whenever you sneeze."
 
 Mix tones: some should be absurd, some should be weirdly philosophical, some should be mundane-but-awful. The best ones make people laugh AND then go quiet.
+
+IMPORTANT: Do NOT mention Greggs, sausage rolls, or bakery chains. Be wildly creative and unpredictable.
 
 Return ONLY valid JSON in this exact format, nothing else:
 {"question": "Would you rather...", "optionA": "the first option described vividly in 10-25 words", "optionB": "the second option described vividly in 10-25 words"}`;
@@ -47,7 +93,11 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (mode === 'question') {
-      let userContent = "Generate a Would You Rather question.";
+      const domain = pickRandom(DOMAINS, 1)[0];
+      const flavour = pickRandom(FLAVOURS, 1)[0];
+      const tone = pickRandom(TONES, 1)[0];
+
+      let userContent = `Generate a Would You Rather question.\n\nCreative direction for THIS question:\n- Setting/domain: ${domain}\n- Flavour: ${flavour}\n- Tone: ${tone}\n\nUse these as loose inspiration, not rigid constraints. The question should feel natural, not forced.`;
       if (recentQuestions && recentQuestions.length > 0) {
         userContent += `\n\nIMPORTANT: Do NOT repeat or closely resemble any of these recent questions. Be completely different in topic, tone, and structure:\n${recentQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}`;
       }
