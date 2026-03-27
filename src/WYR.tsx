@@ -259,13 +259,20 @@ export default function WYR() {
               )}
 
               {error && (
-                <motion.p
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-red-900/60 text-sm italic"
+                  className="flex flex-col items-center gap-4"
                 >
-                  {error}
-                </motion.p>
+                  <p className="text-red-900/60 text-sm italic">{error}</p>
+                  <button
+                    onClick={fetchQuestion}
+                    className="group flex items-center gap-3 text-[#333] hover:text-[#888] transition-colors uppercase tracking-[0.3em] text-xs"
+                  >
+                    <RotateCcw className="w-4 h-4 group-hover:rotate-[-180deg] transition-transform duration-500" />
+                    Try Again
+                  </button>
+                </motion.div>
               )}
             </motion.div>
           ) : (

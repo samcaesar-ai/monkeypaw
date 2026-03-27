@@ -52,6 +52,19 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return shuffled.slice(0, n);
 }
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 500): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: any) {
+    const is529 = err?.status === 529 || err?.message?.includes('529');
+    if (retries > 0 && is529) {
+      await new Promise(r => setTimeout(r, delayMs));
+      return withRetry(fn, retries - 1, delayMs * 2);
+    }
+    throw err;
+  }
+}
+
 const QUESTION_INSTRUCTION = `You are a deranged cosmic gameshow host who presents "Would You Rather" dilemmas. You've been doing this for aeons and your sense of what constitutes a "choice" has become beautifully warped.
 
 Generate a single "Would You Rather" question with exactly two options. Both options should be:
@@ -106,7 +119,7 @@ export default async function handler(req: any, res: any) {
         userContent += `\n\nIMPORTANT: Do NOT repeat or closely resemble any of these recent questions. Be completely different in topic, tone, and structure:\n${recentQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}`;
       }
 
-      const msg = await anthropic.messages.create({
+      const msg = await withRetry(() => anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 256,
         temperature: 1,
@@ -114,7 +127,7 @@ export default async function handler(req: any, res: any) {
         messages: [
           { role: "user", content: userContent }
         ],
-      });
+      }));
 
       const text = (msg.content[0] as any).text;
       // Extract JSON from response — Claude sometimes adds preamble
