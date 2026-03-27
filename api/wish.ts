@@ -1,8 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+import { streamText } from './_llm.js';
 
 const SYSTEM_INSTRUCTION = `You are the Monkey's Paw. You are ancient, sardonic, and utterly literal. You have been granting wishes for centuries and you find the whole thing quietly hilarious.
 
@@ -41,61 +37,52 @@ export default async function handler(req: any, res: any) {
       'Connection': 'keep-alive',
     });
 
-    const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+    await streamText({
       system: SYSTEM_INSTRUCTION,
-      messages: [
-        { role: "user", content: wish }
-      ],
-    });
+      userContent: wish,
+      maxTokens: 1024,
+      onText: (text) => {
+        res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
+      },
+      onDone: async (fullText) => {
+        const parts = fullText.split('IMAGE_PROMPT:');
+        const storyText = parts[0].trim();
+        const imagePrompt = parts[1]?.trim();
 
-    let fullText = '';
+        if (imagePrompt) {
+          res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
+        }
 
-    stream.on('text', (text) => {
-      fullText += text;
-      res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
-    });
+        // Persist wish to Redis (graceful fallback if not configured)
+        try {
+          const { Redis } = await import('@upstash/redis');
+          const redis = new Redis({
+            url: process.env.KV_REST_API_URL!,
+            token: process.env.KV_REST_API_TOKEN!,
+          });
+          const entry = {
+            id: crypto.randomUUID(),
+            wish: (wish as string).slice(0, 200),
+            story: storyText,
+            timestamp: Date.now(),
+          };
+          await redis.lpush('wishes', entry);
+          await redis.ltrim('wishes', 0, 49);
+        } catch {
+          // Redis not configured — skip silently
+        }
 
-    stream.on('end', async () => {
-      const parts = fullText.split('IMAGE_PROMPT:');
-      const storyText = parts[0].trim();
-      const imagePrompt = parts[1]?.trim();
-
-      if (imagePrompt) {
-        res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
-      }
-
-      // Persist wish to Redis (graceful fallback if not configured)
-      try {
-        const { Redis } = await import('@upstash/redis');
-        const redis = new Redis({
-          url: process.env.KV_REST_API_URL!,
-          token: process.env.KV_REST_API_TOKEN!,
-        });
-        const entry = {
-          id: crypto.randomUUID(),
-          wish: (wish as string).slice(0, 200),
-          story: storyText,
-          timestamp: Date.now(),
-        };
-        await redis.lpush('wishes', entry);
-        await redis.ltrim('wishes', 0, 49);
-      } catch {
-        // Redis not configured — skip silently
-      }
-
-      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-      res.end();
-    });
-
-    stream.on('error', (err) => {
-      console.error(err);
-      res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
-      res.end();
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
+      },
+      onError: (err) => {
+        console.error(err);
+        res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+        res.end();
+      },
     });
   } catch (err: any) {
     console.error(err);
-    res.status(500).json({ error: err.message || "Failed to grant wish." });
+    res.status(500).json({ error: err.message || 'Failed to grant wish.' });
   }
 }

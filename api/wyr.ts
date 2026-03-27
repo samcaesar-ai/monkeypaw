@@ -1,8 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+import { createMessage, streamText } from './_llm.js';
 
 // Randomised seed elements to force variety on every request
 // Abstract vibes, NOT specific places — Claude latches onto named locations
@@ -52,18 +48,6 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return shuffled.slice(0, n);
 }
 
-async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 500): Promise<T> {
-  try {
-    return await fn();
-  } catch (err: any) {
-    const is529 = err?.status === 529 || err?.message?.includes('529');
-    if (retries > 0 && is529) {
-      await new Promise(r => setTimeout(r, delayMs));
-      return withRetry(fn, retries - 1, delayMs * 2);
-    }
-    throw err;
-  }
-}
 
 const QUESTION_INSTRUCTION = `You are a deranged cosmic gameshow host who presents "Would You Rather" dilemmas. You've been doing this for aeons and your sense of what constitutes a "choice" has become beautifully warped.
 
@@ -119,18 +103,14 @@ export default async function handler(req: any, res: any) {
         userContent += `\n\nIMPORTANT: Do NOT repeat or closely resemble any of these recent questions. Be completely different in topic, tone, and structure:\n${recentQuestions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')}`;
       }
 
-      const msg = await withRetry(() => anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 256,
-        temperature: 1,
+      const text = await createMessage({
         system: QUESTION_INSTRUCTION,
-        messages: [
-          { role: "user", content: userContent }
-        ],
-      }));
+        userContent,
+        maxTokens: 256,
+        temperature: 1,
+      });
 
-      const text = (msg.content[0] as any).text;
-      // Extract JSON from response — Claude sometimes adds preamble
+      // Extract JSON from response — models sometimes add preamble
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No valid JSON in response');
@@ -149,38 +129,28 @@ export default async function handler(req: any, res: any) {
         'Connection': 'keep-alive',
       });
 
-      const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+      await streamText({
         system: STORY_INSTRUCTION,
-        messages: [
-          { role: "user", content: `The question was: "${question}"\n\nThey chose: "${choice}"\n\nDescribe what happens.` }
-        ],
+        userContent: `The question was: "${question}"\n\nThey chose: "${choice}"\n\nDescribe what happens.`,
+        maxTokens: 1024,
+        onText: (text) => {
+          res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
+        },
+        onDone: async (fullText) => {
+          const parts = fullText.split('IMAGE_PROMPT:');
+          const imagePrompt = parts[1]?.trim();
+          if (imagePrompt) {
+            res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
+          }
+          res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+          res.end();
+        },
+        onError: (err) => {
+          console.error(err);
+          res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+          res.end();
+        },
       });
-
-      let fullText = '';
-
-      stream.on('text', (text) => {
-        fullText += text;
-        res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
-      });
-
-      stream.on('end', () => {
-        const parts = fullText.split('IMAGE_PROMPT:');
-        const imagePrompt = parts[1]?.trim();
-        if (imagePrompt) {
-          res.write(`data: ${JSON.stringify({ type: 'image_prompt', imagePrompt })}\n\n`);
-        }
-        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-        res.end();
-      });
-
-      stream.on('error', (err) => {
-        console.error(err);
-        res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
-        res.end();
-      });
-
       return;
 
     } else {
